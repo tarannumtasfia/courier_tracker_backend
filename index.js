@@ -18,7 +18,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors({
-  origin: ['http://localhost:5174','http://localhost:5173', 'http://localhost:3000']
+  origin: ['http://localhost:5174','http://localhost:5173', 'http://localhost:3000','https://courier-tracker-frontend-eosin.vercel.app']
 }));
 app.use(express.json());
 
@@ -29,6 +29,7 @@ app.use((req, res, next) => {
 setInterval(() => {
   checkForStuckPackages(io);
 }, 5 * 60 * 1000);
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/packages', authMiddleware, packageRoutes);
