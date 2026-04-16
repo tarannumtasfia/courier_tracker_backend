@@ -1,84 +1,105 @@
-Authorization: Bearer <your_token>
-# Assumptions & Design Decisions
+# Aamira Courier Package Tracker — Backend Server
 
-This document outlines design decisions, trade-offs, and interpretations made during development of the Aamira Courier Package Tracker backend.
+A robust REST API and real-time backend server for the **Aamira Courier Package Tracker** system, built with Node.js, Express, MongoDB, and Socket.IO.
 
----
+## Tech Stack
 
-## 1. Idempotency for Courier Updates
+- **Runtime:** Node.js (ESM)
+- **Framework:** Express v5
+- **Database:** MongoDB via Mongoose
+- **Real-time:** Socket.IO
+- **Authentication:** JSON Web Tokens (JWT) + bcryptjs
+- **Dev Tool:** Nodemon
 
-- We consider an event **duplicate** if the `package_id`, `status`, and `event_timestamp` match an existing record.
-- Such duplicates are ignored silently and do not trigger a re-save or broadcast.
+## Getting Started
 
-## 2. Out-of-Order Events
+### Prerequisites
 
-- All events are saved regardless of their timestamp.
-- The current "live view" is computed from the **most recent event by `event_timestamp`**.
-- Out-of-order events are kept for historical traceability but do **not** override the latest view.
+- Node.js v18+
+- npm
+- MongoDB (local or Atlas)
 
-## 3. Package Status Lifecycle
+### Installation
 
-We use these status values:
-- `CREATED`, `PICKED_UP`, `IN_TRANSIT`, `OUT_FOR_DELIVERY`, `DELIVERED`, `EXCEPTION`, `CANCELLED`
+1. Clone the repository:
+   git clone <your-repo-url>
+   cd aamira-tracker-server
 
-Only `DELIVERED` and `CANCELLED` are considered **terminal**.
+2. Install dependencies:
+   npm install
 
-## 4. Stuck Package Detection
+3. Create a `.env` file in the root directory:
+   PORT=5000
+   MONGO_URI=mongodb://localhost:27017/aamira_tracker
+   JWT_SECRET=your_jwt_secret_key
+   CLIENT_URL=http://localhost:3000
 
-- A package is marked as "stuck" if:
-  - It is **active** (not delivered/cancelled)
-  - Its **last event** is older than 30 minutes
-- A background job runs every 5 minutes to check for this.
-- When stuck:
-  - A one-time alert is emitted via `Socket.io`
-  - The alert is saved in an `Alert` collection
-- The alert is **cleared** automatically if a new event is received for that package.
+### Running the Server
 
-## 5. Authentication
+Development mode (auto-restart on changes):
+   npm run dev
 
-- Backend uses **JWT authentication**.
-- All `/api/packages` routes are protected.
-- Clients must pass a valid token in the `Authorization` header as:
+Production mode:
+   npm start
 
+## Project Structure
 
-## 6. Persistence
+aamira-tracker-server/
+├── index.js              # Entry point
+├── .env                  # Environment variables (not committed)
+├── .gitignore
+├── package.json
+└── README.md
 
-- All package events are stored in MongoDB (`PackageEvent` model).
-- Active state is computed using aggregation (latest event per package).
-- If the server restarts, state is rebuilt from persisted events.
+## Features
 
-## 7. Real-Time Updates
+- User registration and login with hashed passwords (bcryptjs)
+- JWT-based authentication and route protection
+- Package creation, tracking, and status updates
+- Real-time package status updates via Socket.IO
+- Cross-origin support with CORS
+- MongoDB data persistence via Mongoose
 
-- Socket.io is used to push live updates to connected dispatcher clients:
-- `package_updated` → when a courier sends a new update
-- `package_stuck` → when a package is detected as stuck
+## API Overview
 
+| Method | Endpoint              | Description                  |
+|--------|-----------------------|------------------------------|
+| POST   | /api/auth/register    | Register a new user          |
+| POST   | /api/auth/login       | Login and receive JWT        |
+| GET    | /api/packages         | Get all packages             |
+| POST   | /api/packages         | Create a new package         |
+| GET    | /api/packages/:id     | Get a package by ID          |
+| PUT    | /api/packages/:id     | Update package status        |
+| DELETE | /api/packages/:id     | Delete a package             |
 
-## Shortcuts / Trade-offs
-In-Memory State:
-- All filtering and display logic is handled on the client side using in-memory state. No -server-side filtering/pagination.
+> Update the table above to match your actual implemented routes.
 
-## Hardcoded Backend URL:
-- Socket connection uses http://localhost:3000 directly. In production, this should be configurable or dynamically set.
+## Real-time Events (Socket.IO)
 
-## Map Not Implemented:
-- Package location (latitude & longitude) is shown as raw coordinates only. No map or geolocation visualization was included to keep scope minimal.
+| Event               | Direction         | Description                        |
+|---------------------|-------------------|------------------------------------|
+| package:updated     | Server → Client   | Emitted when a package is updated  |
+| package:created     | Server → Client   | Emitted when a new package is added|
+| join:room           | Client → Server   | Client joins a tracking room       |
 
-## Limited Error Handling:
-- Network failures or socket connection issues are logged but not shown to the user in the UI.
+> Update events to match your actual Socket.IO implementation.
 
-## Known Limitations
-Non-Persistent State:
-- UI state like selected filters/search is not saved between reloads.
+## Environment Variables
 
-## Mobile Responsiveness:
-- The table is responsive, but on very narrow devices, it may still require scrolling. Card-based layouts could further improve mobile UX.
+| Variable    | Description                        | Example                          |
+|-------------|------------------------------------|----------------------------------|
+| PORT        | Port the server runs on            | 5000                             |
+| MONGO_URI   | MongoDB connection string          | mongodb://localhost:27017/aamira |
+| JWT_SECRET  | Secret key for signing JWTs        | supersecretkey                   |
+| CLIENT_URL  | Allowed frontend origin for CORS   | http://localhost:3000            |
 
-## Time Calculation Precision:
-- timeSince() only shows time in minutes (Xm ago). Could be enhanced to show "hours ago", "days ago", etc.
+## Security Notes
 
-## Search is Simple:
-- The current search only works for full or partial package_id. No fuzzy search or multi-field queries.
+- Passwords are hashed using bcryptjs before storage
+- JWTs are used for stateless authentication
+- CORS is configured to allow only trusted origins
+- Never commit your `.env` file — add it to `.gitignore`
 
-## Deploy
-- As i have deployed the backend on the render and frontend on vercel sometimes it takes time to load as a result the frontend may take time to work.
+## License
+
+ISC
